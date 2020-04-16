@@ -1,0 +1,5 @@
+# Function Automate
+
+This repository is a small collection of Python 3 functions that can be run under an Azure Function. It's goal is to enable functionality that usually needs to be achieved through the user of Power Automate or Logic Apps. This route enables to fully customize all behaviour and adapt it to my needs.
+
+Full details on the functions and how to configure them can be found in https://www.maxwellrules.com
