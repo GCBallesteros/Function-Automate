@@ -17,7 +17,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Dict, List, Union
+from typing import Dict, List, Union
 
 import azure.functions as func
 from azure.identity import DefaultAzureCredential

@@ -15,7 +15,6 @@ Author: Guillem Ballesteros
 """
 import json
 import os
-from typing import Any
 
 import azure.functions as func
 from azure.storage.fileshare import ShareFileClient
