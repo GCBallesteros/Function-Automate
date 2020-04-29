@@ -18,7 +18,7 @@ def exceptions_as_response(f):
         except HttpError as e:
             return e.response
         except Exception as e:
-            logging.info(self.message)
+            logging.info(e.message)
             raise e
 
     return main_with_responses

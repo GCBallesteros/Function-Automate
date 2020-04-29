@@ -19,12 +19,12 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from typing import Dict, List, Union
 
+from __app__.utilities import utilities
+
 import azure.functions as func
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.fileshare import ShareFileClient
-
-from __app__.utilities import utilities
 
 
 class SenderDB:

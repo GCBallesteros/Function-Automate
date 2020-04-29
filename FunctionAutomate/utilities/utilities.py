@@ -4,10 +4,10 @@ Author: Guillem Ballesteros
 """
 from typing import Any, Dict, List, Tuple
 
+from __app__.utilities import exceptions
+
 import azure.functions as func
 from azure.cosmosdb.table.tableservice import TableService
-
-from __app__.utilities import exceptions
 
 
 def get_param(request: func.HttpRequest, param_name: str) -> Any:

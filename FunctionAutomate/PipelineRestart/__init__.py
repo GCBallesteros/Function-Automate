@@ -4,24 +4,17 @@ Author: Guillem Ballesteros
 """
 import datetime
 import logging
-import json
 import os
-import pytz
-
-import azure.functions as func
-
-from azure.cosmosdb.table.tableservice import TableService
-from azure.cosmosdb.table.models import Entity
-
-from azure.identity import DefaultAzureCredential
-from azure.common.credentials import ServicePrincipalCredentials
-
-from azure.mgmt.datafactory import DataFactoryManagementClient
-
-from azure.storage.fileshare import ShareFileClient
 
 from __app__.utilities import exceptions
 from __app__.utilities import utilities
+
+import azure.functions as func
+from azure.common.credentials import ServicePrincipalCredentials
+from azure.mgmt.datafactory import DataFactoryManagementClient
+from azure.storage.fileshare import ShareFileClient
+
+import pytz
 
 # ToDo
 #
@@ -90,19 +83,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     target_table = "PipelinePauseData"
     token = utilities.get_param(req, "token")
 
-    logging.info("Starting table service")
-    table_service = TableService(
-        account_name="functionautomatestorage",
-        account_key="CZn1zNHShwxMfiXolzVea9mXsQk5EuPUZq39A2IsCM79vHEHXcCrpItBt2LnT4DrrTGnxrixf+zSDlVaEy4hzQ==",
+    table_service = utilities.setup_table_service(
+        os.environ["AzureWebJobsStorage"], target_table,
     )
-
-    logging.info(f"Checking if the {target_table} exists.")
-    if not table_service.exists(target_table):
-        msg = f"Table {target_table} to store request info did not exist."
-        logging.info(msg)
-        raise exceptions.HttpError(
-            msg, func.HttpResponse(msg, status_code=500),
-        )
 
     # Retrieve from the table the details required to run the second halve of
     # the pipeline.
@@ -132,11 +115,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             tenant=os.environ["AZURE_TENANT_ID"],
         )
 
-        # Pipeline parameters for restart are passed through the serialized
-        # json data which is read from the table using a lookup activity
-        restart_data = json.loads(paused_pipeline["data"])
-        logging.info([(k, paused_pipeline[k]) for k in paused_pipeline])
-
         # Docs for SDK
         # https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.datafactorymanagementclient?view=azure-python
         # Factory Docs
@@ -145,6 +123,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         adf_client = DataFactoryManagementClient(credentials, subscription_id)
         logging.info(adf_client)
 
+        # The restart data is accessed via a lookup activity from within
+        # ADF
         run_response = restart_pipeline(
             adf_client=adf_client,
             resource_group=paused_pipeline["resource_group"],

@@ -16,12 +16,12 @@ Author: Guillem Ballesteros
 import json
 import os
 
+from __app__.utilities import utilities
+
 import azure.functions as func
 from azure.storage.fileshare import ShareFileClient
 
 from jinja2 import Template
-
-from __app__.utilities import utilities
 
 
 def get_template(conn_str: str, share_name: str, template_path: str) -> Template:
