@@ -2,6 +2,9 @@ azure-functions
 azure-storage-file-share
 azure-keyvault-secrets
 azure-identity
+azure-cosmosdb-table
+azure-mgmt-datafactory
 jinja2
 azure-cosmosdb-table
 msal
+pytz
