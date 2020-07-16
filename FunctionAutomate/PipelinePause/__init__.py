@@ -29,7 +29,6 @@ from azure.cosmosdb.table.models import Entity
 # blog entry also talks about prepopulating pipelines
 # via explicit requests
 
-
 def get_pipeline_params(req: func.HttpRequest) -> Dict[str, Union[int, str]]:
     pipeline_params = {
         k: utilities.get_param(req, k)

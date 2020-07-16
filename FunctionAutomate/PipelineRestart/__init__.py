@@ -10,6 +10,7 @@ from __app__.utilities import exceptions
 from __app__.utilities import utilities
 
 import azure.functions as func
+from azure.common import AzureMissingResourceHttpError
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.storage.fileshare import ShareFileClient
@@ -18,16 +19,15 @@ import pytz
 
 # ToDo
 #
-# retun failures when DF wasn't there and log it
-# Build the pipeline that will do the lookup activity
-# we just pass the token which is read by ADF
 #
-# what if the token has been used
-# or if it does not exist
 # in ADF you also need to create a new Dataset for table storage
 # syntax for queries in https://docs.microsoft.com/en-us/rest/api/storageservices/Query-Operators-Supported-for-the-Table-Service?redirectedfrom=MSDN
 #
-# error checks
+# Docs for SDK
+# https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.datafactorymanagementclient?view=azure-python
+# Factory Docs
+# https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.models.factory?view=azure-python
+# https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.operations.pipelinesoperations?view=azure-python
 
 
 def check_if_expired(timestamp: datetime.datetime, expiration_time: int) -> bool:
@@ -87,15 +87,18 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         os.environ["AzureWebJobsStorage"], target_table,
     )
 
-    # Retrieve from the table the details required to run the second halve of
-    # the pipeline.
-    paused_pipeline = table_service.get_entity(
-        table_name=target_table, partition_key="PauseData", row_key=token
-    )
-    # what happens if token not there?
+    try:
+        paused_pipeline = table_service.get_entity(
+            table_name=target_table, partition_key="PauseData", row_key=token
+        )
+    except AzureMissingResourceHttpError as e:
+        raise exceptions.HttpError(
+            str(e),
+            func.HttpResponse(str(e), status_code=500)
+        )
 
     # acted_upon monitors if a token has already been used. We use it here to
-    # block further restarts.
+    # block the second and further attempts at restarting.
     acted_upon = paused_pipeline["acted_upon"]
 
     has_expired = check_if_expired(
@@ -105,9 +108,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     if not acted_upon and not has_expired:
         logging.info(token)
 
-        # DefaultAzureCredential does not work when manipulating ADF.
-        # If you try it, it will complain about a missing session method.
-        # You will also gave to give the contributor role to application.
+        # DefaultAzureCredential does not work when manipulating ADF. It will
+        # complain about a missing session method.
+        # Remember to give the contributor role to the application.
         # Azure Portal -> Subscriptions -> IAM roles
         credentials = ServicePrincipalCredentials(
             client_id=os.environ["AZURE_CLIENT_ID"],
@@ -115,16 +118,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             tenant=os.environ["AZURE_TENANT_ID"],
         )
 
-        # Docs for SDK
-        # https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.datafactorymanagementclient?view=azure-python
-        # Factory Docs
-        # https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.models.factory?view=azure-python
         subscription_id = os.environ["subscription_id"]
         adf_client = DataFactoryManagementClient(credentials, subscription_id)
         logging.info(adf_client)
 
-        # The restart data is accessed via a lookup activity from within
-        # ADF
+        # The restart data is accessed via a lookup activity from within ADF
         run_response = restart_pipeline(
             adf_client=adf_client,
             resource_group=paused_pipeline["resource_group"],
@@ -133,12 +131,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             token=token,
         )
         logging.info(run_response)
-        # acted_upon is set to 1 by the pipeline on success.
+        # After running acted_upon is set to 1 by the pipeline.
 
-        # https://docs.microsoft.com/en-us/python/api/azure-mgmt-datafactory/azure.mgmt.datafactory.operations.pipelinesoperations?view=azure-python
-
-        # The confirmation of restart websites are stored in the storage
-        # account for extra flexibility.
+        # Retrieve and display success webpage.
         confirmation_site = (
             ShareFileClient.from_connection_string(
                 conn_str=os.environ["AzureWebJobsStorage"],
