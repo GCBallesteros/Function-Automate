@@ -87,6 +87,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         os.environ["AzureWebJobsStorage"], target_table,
     )
 
+    # Since we can't use authentication for the API we will check as
+    # soon as possible if the token for the pipeline restart is valid.
+    # if it is not we halt execution and return a 500 code.
     try:
         paused_pipeline = table_service.get_entity(
             table_name=target_table, partition_key="PauseData", row_key=token
@@ -131,7 +134,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             token=token,
         )
         logging.info(run_response)
-        # After running acted_upon is set to 1 by the pipeline.
+
+        # After running acted_upon is set to 1
+        paused_pipeline["acted_upon"] = 1
+        table_service.update_entity(target_table, paused_pipeline)
 
         # Retrieve and display success webpage.
         confirmation_site = (
